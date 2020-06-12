@@ -33,7 +33,7 @@ from .subs import elim, elimH, elimV
 from .misc import backward_compatible
 
 @backward_compatible
-def Fresnel(Fin, z):
+def Fresnel(Fin, z, n - 1.0):
     """
     *Propagates the field using a convolution method.*
 
@@ -60,11 +60,11 @@ def Fresnel(Fin, z):
         return Fout #return copy to avoid hidden reference/link
     Fout = Field.shallowcopy(Fin) #no need to copy .field as it will be
     # re-created anyway inside _field_Fresnel()
-    Fout.field = _field_Fresnel(z, Fout.field, Fout.dx, Fout.lam)
+    Fout.field = _field_Fresnel(z, Fout.field, Fout.dx, Fout.lam, n)
     return Fout
 
 
-def _field_Fresnel(z, field, dx, lam):
+def _field_Fresnel(z, field, dx, lam, n = 1.0):
     """
     Separated the "math" logic out so that only standard and numpy types
     are used.
@@ -102,11 +102,11 @@ def _field_Fresnel(z, field, dx, lam):
     
     legacy = True #switch on to numerically compare oldLP/new results
     if legacy:
-        kz = 2.*3.141592654/lam * z
+        kz = (2.*3.141592654/lam) * n * z
         siz = N*dx
         dx = siz/(N-1) #like old Cpp code, even though unlogical
     else:
-        kz = 2*_np.pi/lam*z
+        kz = (2*_np.pi/lam)*n*z
         
     
     cokz = _np.cos(kz)
@@ -150,7 +150,7 @@ def _field_Fresnel(z, field, dx, lam):
     iiij2No2 = iiij2N[:2*No2,:2*No2] #slice to size used below
     iiijN = iiij2N[:N, :N]
 
-    RR = _np.sqrt(1/(2*lam*z))*dx*2
+    RR = _np.sqrt(n/(2*lam*z))*dx*2
     io = _np.arange(0, (2*No2)+1) #add one extra to stride fresnel integrals
     R1 = RR*(io - No2)
     fs, fc = _fresnel(R1)
@@ -236,7 +236,7 @@ def _field_Fresnel(z, field, dx, lam):
     return field
 
 @backward_compatible
-def Forward(Fin, z, sizenew, Nnew ):
+def Forward(Fin, z, sizenew, Nnew, n = 1.0):
     """
     *Propagates the field using direct integration.*
 
@@ -276,7 +276,7 @@ def Forward(Fin, z, sizenew, Nnew ):
     dx_old   = old_size/(old_n-1)
     #TODO again, dx seems better defined without -1, check this
     
-    R22 = _np.sqrt(1/(2*Fin.lam*z))
+    R22 = _np.sqrt(n/(2*Fin.lam*z))
 
     X_new = _np.arange(-nn2, new_n-nn2) * dx_new
     Y_new = X_new #same
@@ -329,7 +329,7 @@ def Forward(Fin, z, sizenew, Nnew ):
     return Fout
 
 @backward_compatible
-def Forvard(Fin, z):
+def Forvard(Fin, z, n = 1.0):
     """
     *Propagates the field using a FFT algorithm.*
 
@@ -371,7 +371,7 @@ def Forvard(Fin, z):
         return Fin
     zz = z
     z = abs(z)
-    kz = _2pi/lam*z
+    kz = (_2pi/lam)*n*z
     cokz = _np.cos(kz)
     sikz = _np.sin(kz)
     
@@ -381,7 +381,7 @@ def Forvard(Fin, z):
     iiij = _np.outer(iiN, iiN)
     in_out *= iiij
     
-    z1 = z*lam/2
+    z1 = z*lam/(2.*n)
     No2 = int(N/2)
 
     SW = _np.arange(-No2, N-No2)/size
